@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
+from fastapi import FastAPI, File, UploadFile, Form, HTTPException, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -246,9 +246,9 @@ async def startup_event():
 async def upload_video(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    audio_threshold: float = 0.1,
-    clip_duration: int = 30,
-    max_clips: int = 5
+    audio_threshold: float = Form(0.1),
+    clip_duration: int = Form(30),
+    max_clips: int = Form(5)
 ):
     """
     Upload a video file for processing
@@ -256,7 +256,7 @@ async def upload_video(
     - **file**: Video file (MP4, AVI, MOV, MKV, WebM, FLV)
     - **audio_threshold**: Sensitivity for detecting exciting moments (0.01-0.5)
     - **clip_duration**: Length of each clip in seconds (10-120)
-    - **max_clips**: Maximum number of clips to generate (1-10)
+    - **max_clips**: Maximum number of clips to generate (1-15)
     """
     
     # Validate file
@@ -269,8 +269,8 @@ async def upload_video(
         raise HTTPException(status_code=400, detail="audio_threshold must be between 0.01 and 0.5")
     if not 10 <= clip_duration <= 120:
         raise HTTPException(status_code=400, detail="clip_duration must be between 10 and 120 seconds")
-    if not 1 <= max_clips <= 10:
-        raise HTTPException(status_code=400, detail="max_clips must be between 1 and 10")
+    if not 1 <= max_clips <= 15:
+        raise HTTPException(status_code=400, detail="max_clips must be between 1 and 15")
     
     # Generate unique job ID
     job_id = str(uuid.uuid4())

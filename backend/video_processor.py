@@ -19,6 +19,27 @@ class VideoProcessor:
         os.makedirs(self.temp_dir, exist_ok=True)
         os.makedirs(self.clips_dir, exist_ok=True)
         
+        # Check FFmpeg availability
+        self.check_ffmpeg_availability()
+        
+    def check_ffmpeg_availability(self):
+        """Check if FFmpeg is available and accessible"""
+        try:
+            import subprocess
+            # Try to run ffmpeg -version
+            result = subprocess.run(['ffmpeg', '-version'], 
+                                  capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                logger.info("FFmpeg is available and working")
+            else:
+                logger.warning("FFmpeg may not be properly installed")
+        except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
+            logger.error(f"FFmpeg not found or not accessible: {e}")
+            logger.error("Please install FFmpeg and ensure it's in your system PATH")
+            logger.error("Download from: https://ffmpeg.org/download.html")
+        except Exception as e:
+            logger.warning(f"Could not verify FFmpeg installation: {e}")
+        
     def extract_audio_peaks(self, video_path: str, threshold: float = 0.1) -> List[float]:
         """
         Find moments with high audio energy that indicate exciting content
@@ -31,7 +52,7 @@ class VideoProcessor:
             List of timestamps where audio peaks occur
         """
         try:
-            logger.info(f"Analyzing audio peaks in {video_path}")
+            logger.info(f"Analyzing audio peaks in {video_path} with threshold {threshold}")
             clip = VideoFileClip(video_path)
             
             if not clip.audio:
@@ -42,6 +63,9 @@ class VideoProcessor:
             audio = clip.audio
             duration = clip.duration
             timestamps = []
+            max_rms = 0.0  # Track the loudest moment
+            avg_rms = 0.0  # Track average audio level
+            total_samples = 0
             
             # Sample audio at 1-second intervals
             for t in range(0, int(duration), 1):
@@ -61,6 +85,11 @@ class VideoProcessor:
                         # Mono
                         rms = np.sqrt(np.mean(audio_array ** 2))
                     
+                    # Track statistics
+                    max_rms = max(max_rms, rms)
+                    avg_rms += rms
+                    total_samples += 1
+                    
                     # If this moment has high audio energy, it's likely exciting
                     if rms > threshold:
                         timestamps.append(t)
@@ -74,6 +103,20 @@ class VideoProcessor:
                     
             audio.close()
             clip.close()
+            
+            # Calculate and log audio statistics
+            if total_samples > 0:
+                avg_rms = avg_rms / total_samples
+                logger.info(f"🎵 Audio Analysis Results:")
+                logger.info(f"   Duration: {duration:.1f}s | Samples analyzed: {total_samples}")
+                logger.info(f"   Max volume: {max_rms:.4f} | Average volume: {avg_rms:.4f}")
+                logger.info(f"   Threshold: {threshold:.4f} | Peaks found: {len(timestamps)}")
+                
+                if len(timestamps) == 0:
+                    logger.warning(f"💡 No peaks found! Try lowering threshold:")
+                    suggested_threshold = max(0.01, max_rms * 0.7)  # 70% of max volume
+                    logger.warning(f"   Suggested threshold: {suggested_threshold:.4f}")
+                    logger.warning(f"   Set Audio Sensitivity to 'High' in frontend")
             
             logger.info(f"Found {len(timestamps)} audio peaks")
             return timestamps
@@ -105,10 +148,19 @@ class VideoProcessor:
             # Sort timestamps and remove duplicates
             unique_timestamps = sorted(set(timestamps))
             
-            # Limit to max_clips
-            selected_timestamps = unique_timestamps[:max_clips]
+            # To ensure we get the requested number of clips, prepare more candidates
+            # In case some fail, we have backups
+            backup_multiplier = min(3, len(unique_timestamps) // max_clips) if max_clips > 0 else 2
+            candidate_count = min(len(unique_timestamps), max_clips * backup_multiplier)
+            candidate_timestamps = unique_timestamps[:candidate_count]
             
-            for i, timestamp in enumerate(selected_timestamps):
+            logger.info(f"Attempting to generate {max_clips} clips from {len(candidate_timestamps)} candidate timestamps")
+            
+            clip_count = 0
+            for i, timestamp in enumerate(candidate_timestamps):
+                # Stop if we've generated enough clips
+                if clip_count >= max_clips:
+                    break
                 try:
                     # Calculate clip boundaries
                     start_time = max(0, timestamp - clip_duration // 2)
@@ -128,27 +180,52 @@ class VideoProcessor:
                     clip_path = os.path.join(self.clips_dir, clip_filename)
                     
                     # Write the clip with optimized settings for social media
-                    clip.write_videofile(
-                        clip_path,
-                        codec='libx264',
-                        audio_codec='aac',
-                        temp_audiofile=os.path.join(self.temp_dir, f'temp_audio_{clip_id}.m4a'),
-                        remove_temp=True,
-                        verbose=False,
-                        logger=None
-                    )
+                    try:
+                        clip.write_videofile(
+                            clip_path,
+                            codec='libx264',
+                            audio_codec='aac',
+                            temp_audiofile=os.path.join(self.temp_dir, f'temp_audio_{clip_id}.m4a'),
+                            remove_temp=True,
+                            verbose=False,
+                            logger=None
+                        )
+                    except Exception as ffmpeg_error:
+                        # If FFmpeg fails, try with basic settings
+                        logger.warning(f"FFmpeg error for clip at {timestamp}s: {ffmpeg_error}")
+                        logger.info("Trying with basic video settings...")
+                        try:
+                            clip.write_videofile(
+                                clip_path,
+                                verbose=False,
+                                logger=None
+                            )
+                        except Exception as basic_error:
+                            logger.error(f"Failed to create clip at {timestamp}s with basic settings: {basic_error}")
+                            logger.info(f"Skipping timestamp {timestamp}s and trying next candidate...")
+                            continue  # Skip this timestamp and try the next one
                     
                     clips.append(clip_path)
                     clip.close()
+                    clip_count += 1
                     
-                    logger.info(f"Generated clip {i+1}/{len(selected_timestamps)}: {clip_filename}")
+                    logger.info(f"Generated clip {clip_count}/{max_clips}: {clip_filename}")
                     
                 except Exception as e:
                     logger.error(f"Error creating clip at {timestamp}s: {e}")
                     continue
                     
             video.close()
-            logger.info(f"Successfully generated {len(clips)} clips")
+            
+            # Log results
+            if len(clips) == max_clips:
+                logger.info(f"✅ Successfully generated all {len(clips)} requested clips")
+            else:
+                logger.warning(f"⚠️ Generated {len(clips)} clips out of {max_clips} requested")
+                logger.info(f"   Tried {len(candidate_timestamps)} candidate timestamps")
+                if len(clips) > 0:
+                    logger.info(f"   Success rate: {len(clips)}/{len(candidate_timestamps)} = {(len(clips)/len(candidate_timestamps)*100):.1f}%")
+            
             return clips
             
         except Exception as e:

@@ -3,22 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>StreamClip AI</title>
+    <title>StreamClip AI - Video Highlight Generator</title>
     <link rel="stylesheet" href="style.css">
+    <meta name="description" content="AI-powered video highlight generator that creates short clips from your streams">
 </head>
 <body>
     <div class="container">
-        <h1>StreamClip AI</h1>
-        <p>Upload your stream VOD to generate highlight clips</p>
+        <header class="header">
+            <h1>🎬 StreamClip AI</h1>
+            <p class="subtitle">Transform your long-form content into engaging short clips</p>
+            <p class="description">Upload your stream VOD and our AI will find the most exciting moments to create highlight clips perfect for TikTok, Instagram, and YouTube Shorts.</p>
+        </header>
         
         <div class="upload-section">
-            <input type="file" id="fileInput" accept="video/*">
-            <button onclick="uploadFile()">Upload & Process</button>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📤</div>
+                <h3>Upload Your Video</h3>
+                <p>Drag and drop your video file here or click to browse</p>
+                <input type="file" id="fileInput" accept="video/mp4,video/avi,video/mov,video/mkv,video/webm,video/x-flv" hidden>
+                <button type="button" class="browse-btn" onclick="document.getElementById('fileInput').click()">
+                    Browse Files
+                </button>
+                <div class="file-info">
+                    <small>Supported formats: MP4, AVI, MOV, MKV, WebM, FLV • Max size: 500MB</small>
+                </div>
+            </div>
+            
+            <div class="processing-options">
+                <h4>Processing Options</h4>
+                <div class="options-grid">
+                    <div class="option">
+                        <label for="sensitivity">Audio Sensitivity</label>
+                        <select id="sensitivity">
+                            <option value="0.05">High (More clips)</option>
+                            <option value="0.1" selected>Medium (Balanced)</option>
+                            <option value="0.2">Low (Fewer clips)</option>
+                        </select>
+                    </div>
+                    <div class="option">
+                        <label for="duration">Clip Duration</label>
+                        <select id="duration">
+                            <option value="15">15 seconds</option>
+                            <option value="30" selected>30 seconds</option>
+                            <option value="45">45 seconds</option>
+                            <option value="60">60 seconds</option>
+                        </select>
+                    </div>
+                    <div class="option">
+                        <label for="maxClips">Max Clips</label>
+                        <select id="maxClips">
+                            <option value="3">3 clips</option>
+                            <option value="5" selected>5 clips</option>
+                            <option value="10">10 clips</option>
+                            <option value="15">15 clips</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <button type="button" class="upload-btn" onclick="uploadFile()">
+                🚀 Upload & Process
+            </button>
         </div>
         
-        <div id="status" class="status"></div>
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div class="progress-section" id="progressSection" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="progress-text" id="progressText">0%</div>
+        </div>
         
         <div id="results" class="results"></div>
+        
+        <footer class="footer">
+            <p>Built with ❤️ using FastAPI, OpenCV, and AI • <a href="/docs" target="_blank">API Documentation</a></p>
+        </footer>
     </div>
     
     <script src="app.js"></script>
