@@ -43,7 +43,7 @@ app.add_middleware(
 processor = VideoProcessor()
 
 # Configuration
-MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB
+MAX_FILE_SIZE = 5 * 1024 * 1024 * 1024  # 5GB (uncapped for practical purposes)
 ALLOWED_EXTENSIONS = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv'}
 JOBS_FILE = "jobs.json"
 CLEANUP_HOURS = 24  # Clean up jobs older than 24 hours

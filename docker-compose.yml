@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: streamclip-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for development (hot reload)
+      - ./backend:/app
+      # Persistent storage for uploads and generated clips
+      - backend_uploads:/app/uploads
+      - backend_clips:/app/clips
+      - backend_temp:/app/temp
+      # Exclude virtual environment and cache
+      - /app/venv
+      - /app/__pycache__
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=development
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: streamclip-frontend
+    ports:
+      - "3000:80"
+    volumes:
+      # Mount source code for development
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  backend_uploads:
+    driver: local
+  backend_clips:
+    driver: local
+  backend_temp:
+    driver: local
+
+networks:
+  default:
+    driver: bridge 

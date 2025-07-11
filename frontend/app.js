@@ -2,7 +2,7 @@
 // Connects to the FastAPI backend for real video processing
 
 // Configuration
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = '/api';
 const POLL_INTERVAL = 2000; // Poll every 2 seconds for progress
 
 // Global state
@@ -67,7 +67,7 @@ function handleFileSelect(event) {
 // Validate selected file
 function validateFile(file) {
     const allowedTypes = ['video/mp4', 'video/avi', 'video/mov', 'video/mkv', 'video/webm', 'video/x-flv'];
-    const maxSize = 500 * 1024 * 1024; // 500MB
+    const maxSize = 5 * 1024 * 1024 * 1024; // 5GB
     
     if (!allowedTypes.includes(file.type)) {
         showStatus('❌ Invalid file type. Please select MP4, AVI, MOV, MKV, WebM, or FLV files.', 'error');
@@ -75,7 +75,7 @@ function validateFile(file) {
     }
     
     if (file.size > maxSize) {
-        showStatus('❌ File too large. Maximum size is 500MB.', 'error');
+        showStatus('❌ File too large. Maximum size is 5GB.', 'error');
         return false;
     }
     
