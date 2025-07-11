@@ -1,8 +1,8 @@
 # 🚀 StreamClip AI - Stream Highlight Generator
 
-**Status: Day 4 Complete ✅ - Production Ready!**
+**Status: Day 5 Complete ✅ - Docker Containerization Ready!**
 
-An AI-powered tool that automatically generates highlight clips from long-form streaming content for TikTok, Instagram, and other social platforms. Complete end-to-end web application with professional UI and robust backend.
+An AI-powered tool that automatically generates highlight clips from long-form streaming content for TikTok, Instagram, and other social platforms. Complete end-to-end web application with professional UI, robust backend, and Docker containerization for cross-platform deployment.
 
 ## 🎯 Project Overview
 
@@ -22,6 +22,8 @@ streamclip-ai/
 │   ├── fine_tune_test.py   # ✅ Interactive fine-tuning tool
 │   ├── test_day3_api.py    # ✅ Day 3 API integration tests
 │   ├── requirements.txt    # Python dependencies
+│   ├── Dockerfile          # ✅ Backend Docker container
+│   ├── .dockerignore       # Docker ignore file
 │   ├── venv/              # Virtual environment
 │   ├── uploads/           # Uploaded videos
 │   ├── clips/             # Generated clips
@@ -29,13 +31,59 @@ streamclip-ai/
 ├── frontend/
 │   ├── index.html         # ✅ Production-ready UI with drag-and-drop
 │   ├── app.js            # ✅ Complete API integration & real-time updates
-│   └── style.css         # ✅ Professional responsive design
+│   ├── style.css         # ✅ Professional responsive design
+│   ├── Dockerfile         # ✅ Frontend nginx container
+│   ├── nginx.conf         # ✅ Nginx configuration
+│   └── .dockerignore      # Docker ignore file
+├── docker-compose.yml     # ✅ Multi-container orchestration
 └── README.md
 ```
 
 ## 🔧 Setup Instructions
 
-### Backend Setup
+> **🚀 Quick Start (Recommended)**: Use Docker for instant cross-platform setup!
+
+### 🐳 Docker Setup (Recommended - Cross-Platform)
+
+**Prerequisites**: [Install Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
+**From project root directory**:
+
+```bash
+# Start the application (builds containers automatically)
+docker compose up
+
+# Or run in background
+docker compose up -d
+
+# Access the application
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+**Development workflow**:
+```bash
+# View logs
+docker compose logs -f
+
+# Stop containers
+docker compose down
+
+# Rebuild after changes
+docker compose up --build
+
+# Clean reset (removes volumes)
+docker compose down -v
+```
+
+**Large file support**: Upload videos up to 5GB (tested with 1.6GB+ files)
+
+### 🔧 Native Setup (Alternative)
+
+**For development or if you prefer native setup**:
+
+#### Backend Setup
 
 1. **Navigate to backend directory**:
    ```bash
@@ -58,7 +106,7 @@ streamclip-ai/
    python main.py
    ```
 
-### Frontend Setup
+#### Frontend Setup
 
 1. **Open `frontend/index.html`** in your browser
 2. **Test the interface** - it should show "Frontend loaded successfully!"
@@ -135,11 +183,18 @@ streamclip-ai/
 - [x] **Smart backup system for reliable clip generation**
 - [x] **Comprehensive audio analysis with diagnostics**
 
-### 🔄 Next Steps - Day 5 (Optional)
-- [ ] Advanced features and polish
-- [ ] Performance optimizations
-- [ ] Additional video format support
-- [ ] Deployment preparation
+### ✅ Day 5 Complete (2-3 hours)
+- [x] **Docker containerization with multi-service architecture**
+- [x] **Cross-platform deployment (Windows/Mac/Linux)**
+- [x] **Backend: Python 3.12-slim with FFmpeg and video processing**
+- [x] **Frontend: Nginx alpine with static file serving and API proxy**
+- [x] **Docker Compose orchestration with volume mounts**
+- [x] **Large file support (5GB uploads) with extended timeouts**
+- [x] **Live development workflow with hot reload**
+- [x] **Production-ready containerized environment**
+
+### 🎯 Project Complete!
+StreamClip AI is now production-ready with Docker containerization for easy deployment across any platform.
 
 ## 🛠️ Tech Stack
 
@@ -158,11 +213,182 @@ streamclip-ai/
 - Drag-and-drop file upload
 - Professional gradient UI design
 
+**Deployment & DevOps:**
+- Docker & Docker Compose
+- Nginx (reverse proxy & static files)
+- Cross-platform containerization
+- Volume mounts for development
+
 **Additional:**
 - Python 3.12
 - Virtual environment
 - Git version control
 - FFmpeg for video encoding
+
+## 📚 Version History & Useful Commands
+
+### 🏷️ Project Versions
+
+Each day's progress is tagged with commit hashes for easy rollback:
+
+```bash
+# Version history (newest to oldest)
+git checkout dd04c38  # Day 5 Complete: Docker Containerization
+git checkout 0b9df58  # Day 4 Complete: Frontend Integration
+git checkout 12a8208  # Day 3 Complete: FastAPI Backend  
+git checkout eab37e9  # Day 2 Complete: AI Processing Engine
+git checkout c9c6d2b  # Day 2 Complete: AI Processing Engine (alternate)
+git checkout 866d29a  # Day 1 Complete: Foundation
+
+# Return to latest
+git checkout master
+```
+
+### 🐙 Essential Git Commands
+
+**From project root directory**:
+
+```bash
+# Check current status
+git status
+
+# View commit history
+git log --oneline
+
+# See what changed
+git diff
+
+# Stage files
+git add .
+
+# Commit changes
+git commit -m "Your commit message"
+
+# Push to GitHub
+git push origin master
+
+# Pull latest changes
+git pull origin master
+
+# Create and switch to new branch
+git checkout -b feature-branch
+
+# Switch branches
+git checkout master
+git checkout feature-branch
+
+# Merge branch
+git checkout master
+git merge feature-branch
+```
+
+### 🐳 Essential Docker Commands
+
+**From project root directory**:
+
+```bash
+# Start application (builds if needed)
+docker compose up
+
+# Start in background (detached)
+docker compose up -d
+
+# Stop containers
+docker compose down
+
+# View running containers
+docker compose ps
+
+# View logs (all services)
+docker compose logs
+
+# View logs (specific service)
+docker compose logs backend
+docker compose logs frontend
+
+# Follow logs in real-time
+docker compose logs -f
+
+# Rebuild containers
+docker compose build
+
+# Rebuild and start
+docker compose up --build
+
+# Clean restart (removes volumes)
+docker compose down -v
+docker compose up
+
+# Execute commands in running container
+docker compose exec backend bash
+docker compose exec frontend sh
+
+# View container resource usage
+docker stats
+```
+
+### 🛠️ Development Workflow
+
+**Day-to-day development**:
+
+```bash
+# 1. Start development environment
+docker compose up -d
+
+# 2. View logs during development
+docker compose logs -f
+
+# 3. Make code changes (auto-reloads!)
+# Backend: Edit files in backend/ - uvicorn auto-reloads
+# Frontend: Edit files in frontend/ - refresh browser
+
+# 4. When done developing
+docker compose down
+```
+
+**Troubleshooting**:
+
+```bash
+# Clean Docker environment
+docker compose down -v
+docker system prune -f
+docker compose up --build
+
+# Check container status
+docker compose ps
+docker compose logs backend
+docker compose logs frontend
+
+# Access container shell
+docker compose exec backend bash
+docker compose exec frontend sh
+```
+
+### 🖥️ Platform-Specific Notes
+
+**Windows**:
+- Use Docker Desktop for Windows
+- PowerShell or Command Prompt work fine
+- File paths use backslashes in Windows commands
+
+**Mac**:
+- Use Docker Desktop for Mac
+- Terminal or iTerm2 recommended
+- File paths use forward slashes
+
+**Linux**:
+- Install Docker Engine and Docker Compose
+- Use terminal of choice
+- File paths use forward slashes
+
+```bash
+# Linux Docker installation (Ubuntu/Debian)
+sudo apt update
+sudo apt install docker.io docker-compose
+sudo usermod -aG docker $USER
+# Log out and back in, then:
+docker compose up
+```
 
 ## 🎮 How It Works
 
@@ -297,6 +523,8 @@ This is a personal project following the 7-day build guide. Future contributions
 
 ---
 
-**🎉 StreamClip AI is now complete and production-ready!** 
+**🎉 StreamClip AI is now complete and production-ready with Docker!** 
 
-Visit http://localhost:8000 to start generating clips from your stream VODs. 
+**Quick Start**: `docker compose up` then visit http://localhost:3000 to start generating clips from your stream VODs.
+
+**Cross-platform deployment**: Works seamlessly on Windows, Mac, and Linux with Docker Desktop. 
