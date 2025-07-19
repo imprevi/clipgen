@@ -174,9 +174,9 @@ class VideoProcessor:
                     # Extract the clip
                     clip = video.subclip(start_time, end_time)
                     
-                    # Generate unique filename
-                    clip_id = uuid.uuid4().hex[:8]
-                    clip_filename = f"clip_{clip_id}_{int(timestamp)}s.mp4"
+                    # Generate sequential numbered filename
+                    clip_number = clip_count + 1
+                    clip_filename = f"clip{clip_number:02d}.mp4"
                     clip_path = os.path.join(self.clips_dir, clip_filename)
                     
                     # Write the clip with optimized settings for social media
@@ -185,7 +185,7 @@ class VideoProcessor:
                             clip_path,
                             codec='libx264',
                             audio_codec='aac',
-                            temp_audiofile=os.path.join(self.temp_dir, f'temp_audio_{clip_id}.m4a'),
+                            temp_audiofile=os.path.join(self.temp_dir, f'temp_audio_{clip_number:02d}.m4a'),
                             remove_temp=True,
                             verbose=False,
                             logger=None
