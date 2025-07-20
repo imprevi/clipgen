@@ -25,12 +25,6 @@ from video_processor import VideoProcessor  # Keep for fallback
 from cleanup_utility import CleanupUtility
 from models import JobStatus, UploadResponse
 
-# Import performance optimizations
-from performance_optimizer import (
-    performance_monitor, performance_cache, memory_manager, 
-    parallel_processor, optimize_video_processing_pipeline
-)
-
 # Set up logging
 logging.basicConfig(
     level=logging.INFO,
@@ -81,7 +75,6 @@ class ProcessingSettings(BaseModel):
     audio_threshold: float = 0.1
     clip_duration: int = 30
     max_clips: int = 5
-    enhanced_mode: bool = False
 
 class TwitchVODRequest(BaseModel):
     """Request model for Twitch VOD processing"""
@@ -89,7 +82,6 @@ class TwitchVODRequest(BaseModel):
     audio_threshold: float = 0.1
     clip_duration: int = 30
     max_clips: int = 5
-    enhanced_mode: bool = False
 
 class JobResponse(BaseModel):
     """Response model for job status"""
@@ -114,8 +106,7 @@ async def upload_video(
     file: UploadFile = File(...),
     audio_threshold: float = Form(0.1),
     clip_duration: int = Form(30),
-    max_clips: int = Form(5),
-    enhanced_mode: bool = Form(False)
+    max_clips: int = Form(5)
 ):
     """Upload and process a video file"""
     try:
@@ -143,8 +134,7 @@ async def upload_video(
         settings = ProcessingSettings(
             audio_threshold=audio_threshold,
             clip_duration=clip_duration,
-            max_clips=max_clips,
-            enhanced_mode=enhanced_mode
+            max_clips=max_clips
         )
         
         # Start background processing
@@ -197,8 +187,7 @@ async def process_twitch_vod(
         settings = ProcessingSettings(
             audio_threshold=request.audio_threshold,
             clip_duration=request.clip_duration,
-            max_clips=request.max_clips,
-            enhanced_mode=request.enhanced_mode
+            max_clips=request.max_clips
         )
         
         # Start background processing
@@ -329,88 +318,6 @@ async def manual_cleanup():
         logger.error(f"Manual cleanup failed: {e}")
         return {"success": False, "error": str(e)}
 
-@app.get("/performance")
-async def get_performance_metrics():
-    """Get real-time performance metrics and optimization status"""
-    try:
-        # Get comprehensive performance data
-        performance_summary = performance_monitor.get_performance_summary()
-        memory_status = memory_manager.monitor_memory_usage()
-        
-        # Cache statistics
-        cache_info = {
-            "size": len(performance_cache.cache),
-            "max_size": performance_cache.max_size,
-            "ttl_hours": performance_cache.ttl_hours,
-            "hit_ratio": 0.0
-        }
-        
-        # Calculate cache hit ratio
-        total_calls = sum(performance_summary.get("function_stats", {}).get(func, {}).get("calls", 0) 
-                         for func in performance_summary.get("function_stats", {}))
-        if total_calls > 0:
-            cache_hits = performance_summary.get("cache_stats", {}).get("hits", 0)
-            cache_info["hit_ratio"] = cache_hits / total_calls
-        
-        # Parallel processing info
-        parallel_info = {
-            "max_workers": parallel_processor.max_workers,
-            "cpu_count": parallel_processor.cpu_count,
-            "active_jobs": performance_summary.get("parallel_jobs", 0)
-        }
-        
-        # Memory optimization info
-        chunk_info = memory_manager.chunk_sizes.copy()
-        
-        return {
-            "performance_summary": performance_summary,
-            "memory_status": memory_status,
-            "cache_info": cache_info,
-            "parallel_info": parallel_info,
-            "chunk_sizes": chunk_info,
-            "optimization_level": "High Performance" if memory_status["available_gb"] > 16 else "Conservative"
-        }
-        
-    except Exception as e:
-        logger.error(f"Error getting performance metrics: {e}")
-        return {"error": "Failed to get performance metrics", "details": str(e)}
-
-@app.post("/optimize")
-async def optimize_system():
-    """Trigger system-wide performance optimizations"""
-    try:
-        logger.info("⚡ Manual optimization triggered")
-        
-        # Run optimization pipeline
-        optimize_video_processing_pipeline()
-        
-        # Clear expired cache entries
-        performance_cache._cleanup_expired()
-        
-        # Record memory state
-        performance_monitor.record_memory_peak()
-        
-        # Get optimization results
-        memory_status = memory_manager.monitor_memory_usage()
-        performance_summary = performance_monitor.get_performance_summary()
-        
-        return {
-            "success": True,
-            "message": "System optimization completed",
-            "optimizations_applied": [
-                "Numpy threading optimized",
-                "Cache cleaned up",
-                "Memory state recorded",
-                "Chunk sizes recalculated"
-            ],
-            "memory_status": memory_status,
-            "uptime_seconds": performance_summary.get("uptime_seconds", 0)
-        }
-        
-    except Exception as e:
-        logger.error(f"System optimization failed: {e}")
-        return {"success": False, "error": str(e)}
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint"""
@@ -459,14 +366,12 @@ async def root():
             "📊 Real-time progress tracking",
             "🌐 RESTful API"
         ],
-                 "endpoints": {
-             "docs": "/docs",
-             "health": "/health",
-             "system_status": "/system-status",
-             "cleanup": "/cleanup (POST)",
-             "performance": "/performance",
-             "optimize": "/optimize (POST)"
-         }
+        "endpoints": {
+            "docs": "/docs",
+            "health": "/health",
+            "system_status": "/system-status",
+            "cleanup": "/cleanup (POST)"
+        }
     }
 
 # Startup event
@@ -474,25 +379,15 @@ async def root():
 async def startup_event():
     """Initialize system on startup"""
     try:
-        # Initialize performance optimizations
-        logger.info("⚡ Initializing performance optimizations...")
-        optimize_video_processing_pipeline()
-        
         # Clean up old jobs
         job_manager.cleanup_old_jobs()
         
         # Run initial cleanup
         cleanup_util.run_full_cleanup()
         
-        # Record initial memory state
-        performance_monitor.record_memory_peak()
-        
         logger.info("🚀 StreamClip AI Enhanced startup complete")
         logger.info(f"   ML Enabled: {ML_ENABLED}")
         logger.info(f"   Jobs Loaded: {len(job_manager.get_all_jobs())}")
-        logger.info(f"   Performance Optimizations: Active")
-        logger.info(f"   Parallel Workers: {parallel_processor.max_workers}")
-        logger.info(f"   Cache Size: {performance_cache.max_size} items")
         
     except Exception as e:
         logger.error(f"Startup error: {e}")

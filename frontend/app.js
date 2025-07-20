@@ -155,6 +155,23 @@ async function startProcessing() {
     }
 }
 
+// Toggle processing mode
+function toggleProcessingMode() {
+    const enhancedMode = document.getElementById('enhancedMode').checked;
+    const durationOption = document.getElementById('durationOption');
+    const enhancedInfo = document.getElementById('enhancedInfo');
+    
+    if (enhancedMode) {
+        durationOption.style.opacity = '0.5';
+        durationOption.style.pointerEvents = 'none';
+        enhancedInfo.style.display = 'block';
+    } else {
+        durationOption.style.opacity = '1';
+        durationOption.style.pointerEvents = 'auto';
+        enhancedInfo.style.display = 'none';
+    }
+}
+
 // Process Twitch VOD
 async function processTwitchVod() {
     const twitchUrl = document.getElementById('twitchUrlInput').value.trim();
@@ -184,7 +201,8 @@ async function processTwitchVod() {
             twitch_url: twitchUrl,
             audio_threshold: parseFloat(sensitivity),
             clip_duration: parseInt(duration),
-            max_clips: parseInt(maxClips)
+            max_clips: parseInt(maxClips),
+            enhanced_mode: enhancedMode
         };
         
         const response = await fetch(`${API_BASE_URL}/process-twitch-vod`, {
@@ -251,12 +269,14 @@ async function uploadFile() {
         const sensitivity = document.getElementById('sensitivity').value;
         const duration = document.getElementById('duration').value;
         const maxClips = document.getElementById('maxClips').value;
+        const enhancedMode = document.getElementById('enhancedMode').checked;
         
         const formData = new FormData();
         formData.append('file', file);
         formData.append('audio_threshold', sensitivity);
         formData.append('clip_duration', duration);
         formData.append('max_clips', maxClips);
+        formData.append('enhanced_mode', enhancedMode);
         
         const response = await fetch(`${API_BASE_URL}/upload`, {
             method: 'POST',

@@ -60,6 +60,19 @@
             
             <div class="processing-options">
                 <h4>Processing Options</h4>
+                
+                <!-- Processing Mode Selection -->
+                <div class="mode-selection">
+                    <label class="toggle-option">
+                        <input type="checkbox" id="enhancedMode" onchange="toggleProcessingMode()">
+                        <span class="toggle-switch"></span>
+                        <div class="toggle-label">
+                            <strong>🤖 Enhanced ML Mode</strong>
+                            <small>Variable-length clips, intelligent moment detection, social media optimization</small>
+                        </div>
+                    </label>
+                </div>
+                
                 <div class="options-grid">
                     <div class="option">
                         <label for="sensitivity">Audio Sensitivity</label>
@@ -69,7 +82,7 @@
                             <option value="0.2">Low (Fewer clips)</option>
                         </select>
                     </div>
-                    <div class="option">
+                    <div class="option" id="durationOption">
                         <label for="duration">Clip Duration</label>
                         <select id="duration">
                             <option value="15">15 seconds</option>
@@ -86,6 +99,20 @@
                             <option value="10">10 clips</option>
                             <option value="15">15 clips</option>
                         </select>
+                    </div>
+                </div>
+                
+                <!-- Enhanced Mode Info -->
+                <div class="enhanced-info" id="enhancedInfo" style="display: none;">
+                    <div class="info-box">
+                        <h5>🚀 Enhanced ML Features Active:</h5>
+                        <ul>
+                            <li>🎯 Variable-length clips (10-60 seconds)</li>
+                            <li>🎭 Funny moment detection</li>
+                            <li>📱 Social media optimization</li>
+                            <li>🧠 Context-aware boundaries</li>
+                            <li>📊 Rolling baseline analysis</li>
+                        </ul>
                     </div>
                 </div>
             </div>
