@@ -1,14 +1,42 @@
 # 🚀 StreamClip AI - Stream Highlight Generator
 
-**Status: Day 5 Complete ✅ - Docker Containerization Ready!**
+**Status: MAJOR UPDATE ✅ - Twitch VOD Integration Complete!**
 
-An AI-powered tool that automatically generates highlight clips from long-form streaming content for TikTok, Instagram, and other social platforms. Complete end-to-end web application with professional UI, robust backend, and Docker containerization for cross-platform deployment.
+An AI-powered tool that automatically generates highlight clips from long-form streaming content for TikTok, Instagram, and other social platforms. Now supports **both file uploads AND direct Twitch VOD processing**! Complete end-to-end web application with professional UI, robust backend, and Docker containerization for cross-platform deployment.
 
 ## 🎯 Project Overview
 
 StreamClip AI analyzes stream VODs to detect exciting moments (high audio energy, chat activity, etc.) and automatically generates short-form clips perfect for social media sharing.
 
 **Target Market**: Streamers, content creators, and social media managers who need to efficiently repurpose long-form content.
+
+## 🎮 NEW: Twitch VOD Integration
+
+**🔥 Just Released!** StreamClip AI now supports direct Twitch VOD processing!
+
+### ✨ Twitch Features:
+- **📝 URL Input**: Simply paste any Twitch VOD URL (e.g., `https://www.twitch.tv/videos/123456789`)
+- **🔄 Auto-Download**: Automatically downloads VODs using yt-dlp technology
+- **📊 Real-time Progress**: Detailed progress tracking with phases:
+  - "Downloading VOD from Twitch..."
+  - "AI analyzing video for exciting moments..."
+  - "Finalizing clips..."
+- **🧹 Smart Cleanup**: Auto-deletes downloaded files after processing
+- **⚡ High Quality**: Downloads up to 1080p quality VODs
+- **🛡️ Error Handling**: Handles private/deleted/inaccessible VODs gracefully
+- **🎯 Any Length**: Process streams from minutes to hours (tested with 4.5+ hour streams)
+
+### 🚀 How to Use Twitch VODs:
+1. **Select Source**: Choose "🎮 Twitch VOD URL" option
+2. **Paste URL**: Enter any public Twitch VOD URL
+3. **Configure**: Set processing options (sensitivity, duration, max clips)
+4. **Process**: Watch real-time progress as it downloads and analyzes
+5. **Download**: Get your highlight clips ready for social media!
+
+### ⏱️ Processing Times (4.5hr VOD Example):
+- **Download**: 5-20 minutes (depends on internet speed)
+- **AI Analysis**: 10-30 minutes (depends on hardware)
+- **Total**: ~20-35 minutes for most setups
 
 ## 🏗️ Project Structure
 
@@ -21,7 +49,7 @@ streamclip-ai/
 │   ├── test_processor.py   # ✅ Test script for video processor
 │   ├── fine_tune_test.py   # ✅ Interactive fine-tuning tool
 │   ├── test_day3_api.py    # ✅ Day 3 API integration tests
-│   ├── requirements.txt    # Python dependencies
+│   ├── requirements.txt    # Python dependencies (includes yt-dlp)
 │   ├── Dockerfile          # ✅ Backend Docker container
 │   ├── .dockerignore       # Docker ignore file
 │   ├── venv/              # Virtual environment
@@ -193,8 +221,20 @@ docker compose down -v
 - [x] **Live development workflow with hot reload**
 - [x] **Production-ready containerized environment**
 
+### 🎮 NEW: Twitch VOD Integration Complete!
+- [x] **Direct Twitch VOD processing via URL input**
+- [x] **yt-dlp integration for reliable VOD downloads**
+- [x] **Side-by-side source options (File Upload + Twitch VOD)**
+- [x] **Enhanced progress tracking with detailed phases**
+- [x] **Auto-cleanup of downloaded VOD files**
+- [x] **Robust error handling for private/deleted VODs**
+- [x] **Support for any VOD length (tested with 4.5+ hour streams)**
+- [x] **Twitch URL validation and VOD ID extraction**
+- [x] **Memory-efficient download → process → cleanup pipeline**
+- [x] **Full Docker support with updated dependencies**
+
 ### 🎯 Project Complete!
-StreamClip AI is now production-ready with Docker containerization for easy deployment across any platform.
+StreamClip AI is now production-ready with both file upload AND Twitch VOD processing capabilities, deployed via Docker for easy cross-platform use.
 
 ## 🛠️ Tech Stack
 
@@ -202,6 +242,7 @@ StreamClip AI is now production-ready with Docker containerization for easy depl
 - FastAPI (web framework)
 - OpenCV (computer vision)
 - MoviePy (video processing)
+- yt-dlp (Twitch VOD downloads)
 - Uvicorn (ASGI server)
 - Pydantic (data validation)
 
@@ -417,7 +458,18 @@ docker compose up
 7. **Error Handling**: User-friendly error messages and connection monitoring
 
 ### ✅ Complete Production Flow
-1. **Upload**: Users drag-and-drop or browse for stream VODs (up to 500MB)
+
+**🎮 Twitch VOD Workflow:**
+1. **Select Source**: Choose "🎮 Twitch VOD URL" option
+2. **Paste URL**: Enter any public Twitch VOD URL
+3. **Configure**: Set audio sensitivity, clip duration, and max clips
+4. **Auto-Process**: Watch real-time download → AI analysis → clip generation
+5. **Review**: See video analysis results and exciting moment timestamps
+6. **Download**: Download individual clips or bulk download all clips
+7. **Share**: Optimized clips ready for TikTok, Instagram, YouTube Shorts
+
+**📤 File Upload Workflow:**
+1. **Upload**: Users drag-and-drop or browse for stream VODs (up to 5GB)
 2. **Configure**: Set audio sensitivity, clip duration, and max clips
 3. **Process**: Watch real-time progress as AI analyzes video and generates clips
 4. **Review**: See video analysis results and exciting moment timestamps
@@ -470,6 +522,7 @@ docker compose up
 
 ### Core Functionality
 - `POST /upload` - Upload video for processing
+- `POST /process-twitch-vod` - Process Twitch VOD from URL
 - `GET /jobs/{job_id}` - Check processing status
 - `GET /jobs` - List all jobs with filtering
 - `GET /download/{filename}` - Download generated clips
