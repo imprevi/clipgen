@@ -11,6 +11,9 @@ import logging
 from datetime import datetime
 import shutil
 from pathlib import Path
+import subprocess
+import re
+import sys
 
 # Import our video processor
 from video_processor import VideoProcessor
@@ -57,12 +60,20 @@ class ProcessingSettings(BaseModel):
     clip_duration: int = 30
     max_clips: int = 5
 
+class TwitchVODRequest(BaseModel):
+    """Request model for Twitch VOD processing"""
+    twitch_url: str
+    audio_threshold: float = 0.1
+    clip_duration: int = 30
+    max_clips: int = 5
+
 class JobResponse(BaseModel):
     """Response model for job status"""
     id: str
     filename: str
     status: str
     progress: Optional[int] = 0
+    current_phase: Optional[str] = None
     created_at: str
     completed_at: Optional[str] = None
     clips: List[str] = []
@@ -70,6 +81,7 @@ class JobResponse(BaseModel):
     error: Optional[str] = None
     analysis: Optional[dict] = None
     stats: Optional[dict] = None
+    source_type: Optional[str] = "upload"
 
 def save_jobs():
     """Save jobs to persistent storage"""
@@ -233,6 +245,168 @@ async def process_video_background(job_id: str, video_path: str, settings: Proce
         except Exception as e:
             logger.warning(f"Error during cleanup: {e}")
 
+def extract_twitch_vod_id(url: str) -> str:
+    """Extract Twitch VOD ID from various URL formats"""
+    # Handle different Twitch URL formats
+    patterns = [
+        r'twitch\.tv/videos/(\d+)',
+        r'twitch\.tv/\w+/v/(\d+)',
+        r'twitch\.tv/\w+/video/(\d+)',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            return match.group(1)
+    
+    # If no pattern matches, try to extract just the numeric part
+    numeric_match = re.search(r'(\d+)', url)
+    if numeric_match:
+        return numeric_match.group(1)
+    
+    raise ValueError(f"Could not extract VOD ID from URL: {url}")
+
+def download_twitch_vod(url: str, output_dir: str = "temp") -> dict:
+    """Download Twitch VOD using yt-dlp and return info"""
+    try:
+        import yt_dlp
+        
+        vod_id = extract_twitch_vod_id(url)
+        output_filename = f"twitch_vod_{vod_id}.%(ext)s"
+        output_path = os.path.join(output_dir, output_filename)
+        
+        # Ensure output directory exists
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Configure yt-dlp options
+        ydl_opts = {
+            'format': 'best[height<=1080]',  # Download best quality up to 1080p
+            'outtmpl': output_path,
+            'nocheckcertificate': True,  # Handle SSL issues
+        }
+        
+        logger.info(f"Starting download of Twitch VOD: {url}")
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Get info first
+            info = ydl.extract_info(url, download=False)
+            expected_filename = ydl.prepare_filename(info)
+            
+            # Download the video
+            ydl.download([url])
+        
+        if not os.path.exists(expected_filename):
+            raise FileNotFoundError(f"Downloaded file not found: {expected_filename}")
+        
+        # Get file info
+        file_size = os.path.getsize(expected_filename)
+        
+        logger.info(f"Successfully downloaded VOD to: {expected_filename} ({file_size / 1024 / 1024:.2f}MB)")
+        
+        return {
+            "success": True,
+            "file_path": expected_filename,
+            "file_size": file_size,
+            "vod_id": vod_id
+        }
+        
+    except Exception as e:
+        error_msg = f"Download failed: {str(e)}"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+async def process_twitch_vod_background(job_id: str, twitch_url: str, settings: ProcessingSettings):
+    """Background task for Twitch VOD processing"""
+    try:
+        logger.info(f"Starting Twitch VOD processing for job {job_id}: {twitch_url}")
+        
+        # Update job status - starting download
+        jobs[job_id]["status"] = "downloading"
+        jobs[job_id]["progress"] = 5
+        jobs[job_id]["current_phase"] = "Downloading VOD from Twitch..."
+        save_jobs()
+        
+        # Download the VOD
+        download_result = download_twitch_vod(twitch_url)
+        
+        if not download_result.get("success"):
+            jobs[job_id]["status"] = "failed"
+            jobs[job_id]["error"] = download_result.get("error", "Download failed")
+            jobs[job_id]["completed_at"] = datetime.now()
+            save_jobs()
+            return
+        
+        video_path = download_result["file_path"]
+        jobs[job_id]["video_path"] = video_path
+        jobs[job_id]["progress"] = 30
+        jobs[job_id]["current_phase"] = "Download complete, starting AI analysis..."
+        save_jobs()
+        
+        # Process the video using our AI
+        logger.info(f"Processing downloaded VOD with settings: threshold={settings.audio_threshold}, duration={settings.clip_duration}, max_clips={settings.max_clips}")
+        
+        jobs[job_id]["status"] = "processing"
+        jobs[job_id]["progress"] = 40
+        jobs[job_id]["current_phase"] = "AI analyzing video for exciting moments..."
+        save_jobs()
+        
+        result = processor.process_video(
+            video_path,
+            audio_threshold=settings.audio_threshold,
+            clip_duration=settings.clip_duration,
+            max_clips=settings.max_clips
+        )
+        
+        jobs[job_id]["progress"] = 90
+        jobs[job_id]["current_phase"] = "Finalizing clips..."
+        save_jobs()
+        
+        if result.get("success"):
+            # Success - update job with results
+            jobs[job_id]["status"] = "completed"
+            jobs[job_id]["progress"] = 100
+            jobs[job_id]["current_phase"] = "Complete!"
+            jobs[job_id]["completed_at"] = datetime.now()
+            jobs[job_id]["clips"] = result.get("clips", [])
+            jobs[job_id]["timestamps"] = result.get("timestamps", [])
+            jobs[job_id]["analysis"] = result.get("analysis", {})
+            jobs[job_id]["stats"] = result.get("stats", {})
+            
+            logger.info(f"Twitch VOD job {job_id} completed successfully with {len(result.get('clips', []))} clips")
+            
+        else:
+            # Processing failed
+            jobs[job_id]["status"] = "failed"
+            jobs[job_id]["error"] = result.get("error", "Unknown processing error")
+            jobs[job_id]["completed_at"] = datetime.now()
+            
+            logger.error(f"Twitch VOD job {job_id} failed: {result.get('error')}")
+            
+    except Exception as e:
+        # Unexpected error
+        jobs[job_id]["status"] = "failed"
+        jobs[job_id]["error"] = f"Processing error: {str(e)}"
+        jobs[job_id]["completed_at"] = datetime.now()
+        
+        logger.error(f"Unexpected error in Twitch VOD job {job_id}: {e}")
+        
+    finally:
+        save_jobs()
+        
+        # Clean up downloaded VOD file (auto-delete as requested)
+        try:
+            if "video_path" in jobs[job_id] and os.path.exists(jobs[job_id]["video_path"]):
+                os.remove(jobs[job_id]["video_path"])
+                logger.info(f"Cleaned up downloaded VOD: {jobs[job_id]['video_path']}")
+        except Exception as e:
+            logger.warning(f"Error cleaning up VOD file: {e}")
+        
+        # Clean up temporary files
+        try:
+            processor.cleanup_temp_files()
+        except Exception as e:
+            logger.warning(f"Error during cleanup: {e}")
+
 # Load existing jobs on startup
 load_jobs()
 
@@ -333,6 +507,84 @@ async def upload_video(
         logger.error(f"Error creating job: {e}")
         raise HTTPException(status_code=500, detail=f"Error processing upload: {str(e)}")
 
+@app.post("/process-twitch-vod", response_model=UploadResponse)
+async def process_twitch_vod(
+    background_tasks: BackgroundTasks,
+    request: TwitchVODRequest
+):
+    """
+    Process a Twitch VOD from URL
+    
+    - **twitch_url**: Full Twitch VOD URL (e.g., https://www.twitch.tv/videos/123456789)
+    - **audio_threshold**: Sensitivity for detecting exciting moments (0.01-0.5)
+    - **clip_duration**: Length of each clip in seconds (10-120)
+    - **max_clips**: Maximum number of clips to generate (1-15)
+    """
+    
+    # Validate Twitch URL
+    if not request.twitch_url or "twitch.tv" not in request.twitch_url.lower():
+        raise HTTPException(status_code=400, detail="Invalid Twitch URL. Must contain 'twitch.tv'")
+    
+    # Validate parameters
+    if not 0.01 <= request.audio_threshold <= 0.5:
+        raise HTTPException(status_code=400, detail="audio_threshold must be between 0.01 and 0.5")
+    if not 10 <= request.clip_duration <= 120:
+        raise HTTPException(status_code=400, detail="clip_duration must be between 10 and 120 seconds")
+    if not 1 <= request.max_clips <= 15:
+        raise HTTPException(status_code=400, detail="max_clips must be between 1 and 15")
+    
+    # Extract VOD ID for filename
+    try:
+        vod_id = extract_twitch_vod_id(request.twitch_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    # Generate unique job ID
+    job_id = str(uuid.uuid4())
+    
+    try:
+        # Create job record
+        settings = ProcessingSettings(
+            audio_threshold=request.audio_threshold,
+            clip_duration=request.clip_duration,
+            max_clips=request.max_clips
+        )
+        
+        jobs[job_id] = {
+            "id": job_id,
+            "filename": f"Twitch VOD {vod_id}",
+            "safe_filename": f"twitch_vod_{vod_id}",
+            "status": "queued",
+            "progress": 0,
+            "current_phase": "Queued for processing...",
+            "twitch_url": request.twitch_url,
+            "vod_id": vod_id,
+            "video_path": None,  # Will be set after download
+            "file_size": None,   # Will be set after download
+            "created_at": datetime.now(),
+            "completed_at": None,
+            "clips": [],
+            "timestamps": [],
+            "error": None,
+            "analysis": None,
+            "stats": None,
+            "settings": settings.dict(),
+            "source_type": "twitch_vod"
+        }
+        
+        save_jobs()
+        
+        # Start background processing
+        background_tasks.add_task(process_twitch_vod_background, job_id, request.twitch_url, settings)
+        
+        logger.info(f"Created Twitch VOD job {job_id} for URL: {request.twitch_url}")
+        
+        return UploadResponse(job_id=job_id, status="queued")
+        
+    except Exception as e:
+        logger.error(f"Error creating Twitch VOD job: {e}")
+        raise HTTPException(status_code=500, detail=f"Error processing Twitch VOD: {str(e)}")
+
 @app.get("/jobs/{job_id}", response_model=JobResponse)
 async def get_job_status(job_id: str):
     """Get the status of a processing job"""
@@ -348,13 +600,15 @@ async def get_job_status(job_id: str):
         filename=job["filename"],
         status=job["status"],
         progress=job.get("progress", 0),
+        current_phase=job.get("current_phase"),
         created_at=job["created_at"].isoformat() if isinstance(job["created_at"], datetime) else str(job["created_at"]),
         completed_at=job["completed_at"].isoformat() if job.get("completed_at") and isinstance(job["completed_at"], datetime) else None,
         clips=[os.path.basename(clip) for clip in job.get("clips", [])],  # Return just filenames for security
         timestamps=job.get("timestamps", []),
         error=job.get("error"),
         analysis=job.get("analysis"),
-        stats=job.get("stats")
+        stats=job.get("stats"),
+        source_type=job.get("source_type", "upload")
     )
     
     return response

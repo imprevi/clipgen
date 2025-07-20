@@ -46,7 +46,13 @@ function setupEventListeners() {
     fileInput.addEventListener('change', handleFileSelect);
     
     // Upload button click
-    uploadButton.addEventListener('click', uploadFile);
+    uploadButton.addEventListener('click', startProcessing);
+    
+    // Source selection radio buttons
+    const sourceRadios = document.querySelectorAll('input[name="source"]');
+    sourceRadios.forEach(radio => {
+        radio.addEventListener('change', handleSourceChange);
+    });
     
     // Drag and drop support
     const uploadArea = document.getElementById('uploadArea');
@@ -104,6 +110,115 @@ function handleDrop(event) {
     if (files.length > 0) {
         fileInput.files = files;
         validateFile(files[0]);
+    }
+}
+
+// Handle source selection change
+function handleSourceChange(event) {
+    const selectedSource = event.target.value;
+    const uploadArea = document.getElementById('uploadArea');
+    const twitchArea = document.getElementById('twitchArea');
+    
+    if (selectedSource === 'upload') {
+        uploadArea.style.display = 'block';
+        twitchArea.style.display = 'none';
+    } else {
+        uploadArea.style.display = 'none';
+        twitchArea.style.display = 'block';
+    }
+}
+
+// Validate Twitch URL
+function validateTwitchUrl(url) {
+    if (!url || url.trim() === '') {
+        showStatus('❌ Please enter a Twitch VOD URL.', 'error');
+        return false;
+    }
+    
+    if (!url.includes('twitch.tv') || !url.includes('videos/')) {
+        showStatus('❌ Invalid Twitch URL format. Please use a URL like: https://www.twitch.tv/videos/123456789', 'error');
+        return false;
+    }
+    
+    showStatus('✅ Valid Twitch URL detected.', 'success');
+    return true;
+}
+
+// Start processing (either file upload or Twitch VOD)
+async function startProcessing() {
+    const selectedSource = document.querySelector('input[name="source"]:checked').value;
+    
+    if (selectedSource === 'upload') {
+        await uploadFile();
+    } else {
+        await processTwitchVod();
+    }
+}
+
+// Process Twitch VOD
+async function processTwitchVod() {
+    const twitchUrl = document.getElementById('twitchUrlInput').value.trim();
+    
+    if (!validateTwitchUrl(twitchUrl)) {
+        return;
+    }
+    
+    if (isProcessing) {
+        showStatus('⏳ Processing already in progress...', 'info');
+        return;
+    }
+    
+    isProcessing = true;
+    updateUploadUI(true);
+    
+    try {
+        showStatus('🎮 Starting Twitch VOD processing...', 'info');
+        showProgress(0);
+        
+        // Get processing options from form
+        const sensitivity = document.getElementById('sensitivity').value;
+        const duration = document.getElementById('duration').value;
+        const maxClips = document.getElementById('maxClips').value;
+        
+        const requestData = {
+            twitch_url: twitchUrl,
+            audio_threshold: parseFloat(sensitivity),
+            clip_duration: parseInt(duration),
+            max_clips: parseInt(maxClips)
+        };
+        
+        const response = await fetch(`${API_BASE_URL}/process-twitch-vod`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            currentJobId = data.job_id;
+            
+            showStatus('✅ Twitch VOD processing started!', 'success');
+            console.log('Twitch VOD processing started:', data);
+            
+            // Start monitoring progress
+            startProgressMonitoring();
+            
+        } else {
+            const errorData = await response.json();
+            showStatus(`❌ Processing failed: ${errorData.detail || 'Unknown error'}`, 'error');
+            console.error('Twitch VOD processing error:', errorData);
+        }
+        
+    } catch (error) {
+        showStatus('❌ Processing error: ' + error.message, 'error');
+        console.error('Twitch VOD processing error:', error);
+    } finally {
+        if (!currentJobId) {
+            isProcessing = false;
+            updateUploadUI(false);
+        }
     }
 }
 
@@ -206,15 +321,20 @@ function startProgressMonitoring() {
 
 // Update progress display
 function updateProgress(jobData) {
-    const { status, progress, filename } = jobData;
+    const { status, progress, filename, current_phase, source_type } = jobData;
     
     let statusText = '';
     let statusClass = 'info';
+    const sourceIcon = source_type === 'twitch_vod' ? '🎮' : '📤';
     
     switch (status) {
         case 'queued':
             statusText = `⏳ Queued for processing: ${filename}`;
             showProgress(5);
+            break;
+        case 'downloading':
+            statusText = `📥 Downloading: ${filename} (${progress}%)`;
+            showProgress(progress);
             break;
         case 'processing':
             statusText = `🔄 Processing: ${filename} (${progress}%)`;
@@ -231,10 +351,19 @@ function updateProgress(jobData) {
             hideProgress();
             break;
         default:
-            statusText = `📊 Status: ${status}`;
+            statusText = `${sourceIcon} Status: ${status}`;
     }
     
     showStatus(statusText, statusClass);
+    
+    // Update progress phase if available
+    const progressPhaseElement = document.getElementById('progressPhase');
+    if (progressPhaseElement && current_phase) {
+        progressPhaseElement.textContent = current_phase;
+        progressPhaseElement.style.display = 'block';
+    } else if (progressPhaseElement) {
+        progressPhaseElement.style.display = 'none';
+    }
 }
 
 // Handle job completion
@@ -256,6 +385,7 @@ function handleJobComplete(jobData) {
     // Reset for next upload
     currentJobId = null;
     fileInput.value = '';
+    document.getElementById('twitchUrlInput').value = '';
 }
 
 // Handle job failure
@@ -273,6 +403,7 @@ function handleJobFailed(jobData) {
     // Reset for next upload
     currentJobId = null;
     fileInput.value = '';
+    document.getElementById('twitchUrlInput').value = '';
 }
 
 // Display processing results

@@ -16,6 +16,24 @@
         </header>
         
         <div class="upload-section">
+            <!-- Source Selection -->
+            <div class="source-selection">
+                <h3>Choose Your Source</h3>
+                <div class="radio-group">
+                    <label class="radio-option">
+                        <input type="radio" name="source" value="upload" checked>
+                        <span class="radio-custom"></span>
+                        📤 Upload Video File
+                    </label>
+                    <label class="radio-option">
+                        <input type="radio" name="source" value="twitch">
+                        <span class="radio-custom"></span>
+                        🎮 Twitch VOD URL
+                    </label>
+                </div>
+            </div>
+
+            <!-- File Upload Section -->
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📤</div>
                 <h3>Upload Your Video</h3>
@@ -26,6 +44,17 @@
                 </button>
                 <div class="file-info">
                     <small>Supported formats: MP4, AVI, MOV, MKV, WebM, FLV • Max size: 500MB</small>
+                </div>
+            </div>
+
+            <!-- Twitch VOD Section -->
+            <div class="twitch-area" id="twitchArea" style="display: none;">
+                <div class="twitch-icon">🎮</div>
+                <h3>Enter Twitch VOD URL</h3>
+                <p>Paste the URL of the Twitch VOD you want to process</p>
+                <input type="url" id="twitchUrlInput" placeholder="https://www.twitch.tv/videos/123456789" class="twitch-url-input">
+                <div class="file-info">
+                    <small>Supports public Twitch VODs • VODs must be accessible</small>
                 </div>
             </div>
             
@@ -61,8 +90,8 @@
                 </div>
             </div>
             
-            <button type="button" class="upload-btn" onclick="uploadFile()">
-                🚀 Upload & Process
+            <button type="button" class="upload-btn" onclick="startProcessing()">
+                🚀 Start Processing
             </button>
         </div>
         
@@ -73,6 +102,7 @@
                 <div class="progress-fill" id="progressFill"></div>
             </div>
             <div class="progress-text" id="progressText">0%</div>
+            <div class="progress-phase" id="progressPhase"></div>
         </div>
         
         <div id="results" class="results"></div>
